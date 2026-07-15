@@ -44,5 +44,17 @@ export const ABAS = {
 export const ABAS_LABEL = {
   [ABAS.MAPA]: '🗺️ Mapa',
   [ABAS.FORMULARIO]: '➕ Adicionar',
-  [ABAS.LISTA]: '📋 Para Visitar'
+  [ABAS.LISTA]: '📋 Locais'
+};
+
+export const LISTA_SUBABAS = {
+  TODOS: 'todos',
+  VISITADOS: 'visitados',
+  PARA_VISITAR: 'paraVisitar'
+};
+
+export const LISTA_SUBABAS_LABEL = {
+  [LISTA_SUBABAS.TODOS]: 'Todos',
+  [LISTA_SUBABAS.VISITADOS]: 'Visitados',
+  [LISTA_SUBABAS.PARA_VISITAR]: 'Para Visitar'
 };

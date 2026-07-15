@@ -1,20 +1,43 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../contexts/AppContext.jsx';
-import CardVisitar from './CardVisitar.jsx';
+import {
+  LISTA_SUBABAS,
+  LISTA_SUBABAS_LABEL
+} from '../../utils/tipos.js';
+import CardLocal from './CardLocal.jsx';
 
 export default function ListaVisitar() {
-  const { paraVisitar, abrirFormulario } = useApp();
+  const { locais, paraVisitar, abrirFormulario } = useApp();
   const [busca, setBusca] = useState('');
+  const [subAba, setSubAba] = useState(LISTA_SUBABAS.TODOS);
+
+  const todosLocais = useMemo(() => {
+    const visitados = locais.map(l => ({ ...l, _modo: 'visitado' }));
+    const desejos = paraVisitar.map(l => ({ ...l, _modo: 'paraVisitar' }));
+    return [...visitados, ...desejos];
+  }, [locais, paraVisitar]);
 
   const itensFiltrados = useMemo(() => {
-    if (!busca.trim()) return paraVisitar;
+    let base = [];
+    if (subAba === LISTA_SUBABAS.TODOS) base = todosLocais;
+    else if (subAba === LISTA_SUBABAS.VISITADOS) base = locais.map(l => ({ ...l, _modo: 'visitado' }));
+    else if (subAba === LISTA_SUBABAS.PARA_VISITAR) base = paraVisitar.map(l => ({ ...l, _modo: 'paraVisitar' }));
+
+    if (!busca.trim()) return base;
     const termo = busca.toLowerCase().trim();
-    return paraVisitar.filter(item =>
+    return base.filter(item =>
       item.nome?.toLowerCase().includes(termo) ||
       item.endereco?.toLowerCase().includes(termo) ||
       item.descricao?.toLowerCase().includes(termo)
     );
-  }, [paraVisitar, busca]);
+  }, [todosLocais, locais, paraVisitar, subAba, busca]);
+
+  const contadorSubAba = (sub) => {
+    if (sub === LISTA_SUBABAS.TODOS) return todosLocais.length;
+    if (sub === LISTA_SUBABAS.VISITADOS) return locais.length;
+    if (sub === LISTA_SUBABAS.PARA_VISITAR) return paraVisitar.length;
+    return 0;
+  };
 
   const handleBuscaChange = (e) => {
     setBusca(e.target.value);
@@ -25,27 +48,26 @@ export default function ListaVisitar() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.titulo}>Locais para Visitar</h2>
-        <span style={styles.contador}>
-          {paraVisitar.length} {paraVisitar.length === 1 ? 'local' : 'locais'}
+    <div className="lista-container">
+      <div className="lista-header">
+        <h2 className="lista-titulo">Meus Locais</h2>
+        <span className="lista-contador">
+          {todosLocais.length} {todosLocais.length === 1 ? 'local' : 'locais'}
         </span>
       </div>
 
-      <div style={styles.buscaContainer}>
+      <div className="lista-busca-container">
         <input
           type="text"
-          className="input"
+          className="input lista-input-busca"
           placeholder="Buscar por nome, endereço..."
           value={busca}
           onChange={handleBuscaChange}
-          style={styles.inputBusca}
         />
         {busca && (
           <button
             className="btn btn-secondary btn-small"
-            style={styles.btnLimpar}
+            style={{ padding: '12px 14px', minWidth: '44px' }}
             onClick={handleLimparBusca}
             title="Limpar busca"
           >
@@ -54,22 +76,42 @@ export default function ListaVisitar() {
         )}
       </div>
 
+      {/* Subtabs */}
+      <div className="lista-subtabs">
+        {Object.values(LISTA_SUBABAS).map((sub) => (
+          <button
+            key={sub}
+            className={`lista-subtab ${subAba === sub ? 'active' : ''}`}
+            onClick={() => setSubAba(sub)}
+          >
+            {LISTA_SUBABAS_LABEL[sub]}
+            <span style={{ marginLeft: '6px', fontSize: '11px', opacity: 0.7 }}>
+              ({contadorSubAba(sub)})
+            </span>
+          </button>
+        ))}
+      </div>
+
       {itensFiltrados.length === 0 ? (
-        <div style={styles.vazio}>
-          <div style={styles.vazioIcon}>📋</div>
-          <p style={styles.vazioTitulo}>
-            {busca.trim() ? 'Nenhum local encontrado' : 'Nenhum local para visitar'}
+        <div className="lista-vazio">
+          <div className="lista-vazio-icone">
+            {subAba === LISTA_SUBABAS.PARA_VISITAR ? '📋' : '📍'}
+          </div>
+          <p className="lista-vazio-titulo">
+            {busca.trim() ? 'Nenhum local encontrado' : 'Nenhum local aqui'}
           </p>
-          <p style={styles.vazioSub}>
+          <p className="lista-vazio-sub">
             {busca.trim()
               ? 'Tente outro termo de busca'
-              : 'Adicione locais pelo mapa ou formulário'
+              : subAba === LISTA_SUBABAS.PARA_VISITAR
+                ? 'Adicione locais pelo mapa ou formulário'
+                : 'Adicione seu primeiro local na aba "Adicionar"'
             }
           </p>
-          {!busca.trim() && (
+          {!busca.trim() && subAba === LISTA_SUBABAS.PARA_VISITAR && (
             <button
               className="btn"
-              style={styles.btnAdicionar}
+              style={{ minWidth: '180px' }}
               onClick={() => abrirFormulario()}
             >
               + Adicionar local
@@ -77,99 +119,17 @@ export default function ListaVisitar() {
           )}
         </div>
       ) : (
-        <div style={styles.lista}>
+        <div className="lista">
           {busca.trim() && (
-            <p style={styles.resultadoInfo}>
-              {itensFiltrados.length} {itensFiltrados.length === 1 ? 'resultado' : 'resultados'} para "{busca}"
+            <p className="lista-resultado-info">
+              {itensFiltrados.length} {itensFiltrados.length === 1 ? 'resultado' : 'resultados'} para &quot;{busca}&quot;
             </p>
           )}
           {itensFiltrados.map(item => (
-            <CardVisitar key={item.id} item={item} />
+            <CardLocal key={`${item._modo}-${item.id}`} local={item} modo={item._modo} />
           ))}
         </div>
       )}
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: '16px',
-    maxWidth: '720px',
-    margin: '0 auto',
-    width: '100%'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px',
-    flexWrap: 'wrap',
-    gap: '8px'
-  },
-  titulo: {
-    fontSize: '22px',
-    fontWeight: 700,
-    color: 'var(--text)',
-    margin: 0
-  },
-  contador: {
-    fontSize: '13px',
-    fontWeight: 500,
-    color: 'var(--text-secondary)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-sm)',
-    background: 'rgba(0,0,0,0.04)'
-  },
-  buscaContainer: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '16px',
-    alignItems: 'center'
-  },
-  inputBusca: {
-    flex: 1
-  },
-  btnLimpar: {
-    padding: '12px 14px',
-    minWidth: '44px'
-  },
-  lista: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  },
-  resultadoInfo: {
-    fontSize: '12px',
-    color: 'var(--text-secondary)',
-    margin: '0 0 8px 4px'
-  },
-  vazio: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '48px 24px',
-    textAlign: 'center'
-  },
-  vazioIcon: {
-    fontSize: '48px',
-    marginBottom: '16px',
-    opacity: 0.5
-  },
-  vazioTitulo: {
-    fontSize: '17px',
-    fontWeight: 600,
-    color: 'var(--text)',
-    margin: '0 0 6px 0'
-  },
-  vazioSub: {
-    fontSize: '14px',
-    color: 'var(--text-secondary)',
-    margin: '0 0 20px 0',
-    lineHeight: 1.4
-  },
-  btnAdicionar: {
-    minWidth: '180px'
-  }
-};

@@ -11,9 +11,12 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
     onChange(index, { ...comida, [field]: value });
   };
 
-  const handleFotoChange = (fotos) => {
-    onChange(index, { ...comida, foto: fotos[0] || null });
+  const handleFotosChange = (fotos) => {
+    onChange(index, { ...comida, fotos });
   };
+
+  // Backward compatibility: converte foto unica (antiga) para array
+  const fotosAtuais = comida.fotos || (comida.foto ? [comida.foto] : []);
 
   return (
     <div className="card" style={cardStyle}>
@@ -31,18 +34,18 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
           className="input"
           value={comida.nome || ''}
           onChange={(e) => handleChange('nome', e.target.value)}
-          placeholder="Ex: Filé ao molho madeira"
+          placeholder="Ex: File ao molho madeira"
         />
         {erroNome && <span style={erroStyle}>{erroNome}</span>}
       </div>
 
       <div style={fieldStyle}>
-        <label style={labelStyle}>Descrição</label>
+        <label style={labelStyle}>Descricao</label>
         <textarea
           className="input"
           value={comida.descricao || ''}
           onChange={(e) => handleChange('descricao', e.target.value)}
-          placeholder="Ingredientes, observações..."
+          placeholder="Ingredientes, observacoes..."
           rows={2}
           style={{ resize: 'vertical', minHeight: '60px' }}
         />
@@ -52,7 +55,7 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>
             Nota
-            <span style={previewStyle}> {notaParaEmoji(comida.nota || 0)}</span>
+            <span style={previewStyle}> {notaParaEmoji(comida.nota || 0, comida.notaUnanime || false)}</span>
             <span style={labelPreviewStyle}> {labelNota(comida.nota || 0)}</span>
           </label>
           <input
@@ -72,7 +75,7 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
 
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>
-            Preço
+            Preco
             <span style={previewStyle}> {precoParaEmoji(comida.preco || 0)}</span>
             <span style={labelPreviewStyle}> {labelPreco(comida.preco || 0)}</span>
           </label>
@@ -92,12 +95,47 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
         </div>
       </div>
 
+      {/* Valor em R$ */}
+      <div style={fieldStyle}>
+        <label style={labelStyle}>Valor pago (R$)</label>
+        <div style={valorInputWrapperStyle}>
+          <span style={valorPrefixStyle}>R$</span>
+          <input
+            type="number"
+            className="input"
+            value={comida.valorReais ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              handleChange('valorReais', val === '' ? null : parseFloat(val));
+            }}
+            placeholder="0,00"
+            min={0}
+            step={0.01}
+            style={valorInputStyle}
+          />
+        </div>
+      </div>
+
+      {/* Nota unanime do prato */}
+      <div style={fieldStyle}>
+        <label style={checkboxLabelStyle}>
+          <input
+            type="checkbox"
+            checked={comida.notaUnanime || false}
+            onChange={(e) => handleChange('notaUnanime', e.target.checked)}
+            style={{ marginRight: '8px' }}
+          />
+          <span>Nota unanime do prato</span>
+        </label>
+      </div>
+
+      {/* Multiplas fotos do prato */}
       <div style={fieldStyle}>
         <FotoUploader
-          fotos={comida.foto ? [comida.foto] : []}
-          onChange={handleFotoChange}
-          maxFotos={1}
-          label="Foto do prato"
+          fotos={fotosAtuais}
+          onChange={handleFotosChange}
+          maxFotos={5}
+          label="Fotos do prato"
         />
       </div>
     </div>
@@ -181,4 +219,42 @@ const erroStyle = {
   fontSize: '12px',
   color: 'var(--danger)',
   marginTop: '4px'
+};
+
+const valorInputWrapperStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)',
+  background: 'var(--bg-card)',
+  overflow: 'hidden'
+};
+
+const valorPrefixStyle = {
+  padding: '0 10px',
+  fontSize: '14px',
+  fontWeight: 500,
+  color: 'var(--text-secondary)',
+  background: 'var(--bg)',
+  borderRight: '1px solid var(--border)',
+  lineHeight: '42px'
+};
+
+const valorInputStyle = {
+  flex: 1,
+  border: 'none',
+  background: 'transparent',
+  padding: '10px 12px',
+  fontSize: '14px',
+  color: 'var(--text)',
+  outline: 'none'
+};
+
+const checkboxLabelStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  fontSize: '14px',
+  cursor: 'pointer',
+  color: 'var(--text)',
+  fontWeight: 500
 };

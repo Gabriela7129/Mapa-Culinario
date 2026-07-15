@@ -29,7 +29,7 @@ export function AppProvider({ children }) {
     setLocais(dados.locais || []);
     setParaVisitar(dados.paraVisitar || []);
     setSenhaConfigurada(!!config.senha);
-    setAutenticado(!config.senha); // Se não tem senha, já está autenticado
+    setAutenticado(!config.senha); // Se nao tem senha, ja esta autenticado
     setLoading(false);
   }, []);
 
@@ -99,6 +99,12 @@ export function AppProvider({ children }) {
       links: item.links || {},
       _idParaVisitar: item.id
     };
+    // Preservar coordenadas se existirem (bug 13)
+    if (item.lat != null) prefill.lat = item.lat;
+    if (item.lng != null) prefill.lng = item.lng;
+    // Compatibilidade backwards com latitude/longitude
+    if (item.latitude != null && prefill.lat == null) prefill.lat = parseFloat(item.latitude);
+    if (item.longitude != null && prefill.lng == null) prefill.lng = parseFloat(item.longitude);
     setLocalEditando(prefill);
     setAbaAtiva(ABAS.FORMULARIO);
   }, []);

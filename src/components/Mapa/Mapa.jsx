@@ -39,17 +39,41 @@ function MarcadoresAtualizaveis({ locaisFiltrados }) {
 }
 
 export default function Mapa() {
-  const { locais, filtros, setFiltros, filtrarLocais, abrirFormulario } = useApp();
+  const { locais, paraVisitar, filtros, setFiltros, filtrarLocais, abrirFormulario, abrirFormularioDeVisitar } = useApp();
   const [filtrosVisiveis, setFiltrosVisiveis] = useState(false);
 
-  const locaisFiltrados = useMemo(() => filtrarLocais(), [filtrarLocais]);
+  const locaisVisitadosFiltrados = useMemo(() => filtrarLocais(), [filtrarLocais]);
+
+  // Para visitar também aparece no mapa quando o filtro permite
+  const paraVisitarFiltrados = useMemo(() => {
+    if (filtros.status === STATUS_LOCAL.VISITADO) return [];
+    let base = paraVisitar;
+    if (filtros.tipo !== 'todos') {
+      base = base.filter(p => p.tipo === filtros.tipo);
+    }
+    return base;
+  }, [paraVisitar, filtros]);
+
+  // Combine tudo para o mapa
+  const todosOsPontos = useMemo(() => {
+    const visitados = locaisVisitadosFiltrados.map(l => ({ ...l, _origem: 'visitado' }));
+    const desejos = paraVisitarFiltrados.map(p => ({ ...p, _origem: 'paraVisitar', status: STATUS_LOCAL.PLANEJADO }));
+    return [...visitados, ...desejos];
+  }, [locaisVisitadosFiltrados, paraVisitarFiltrados]);
 
   const centroPadrao = [-23.5505, -46.6333]; // Sao Paulo
 
   function criarIconCustom(local) {
-    const cor = STATUS_LOCAL_COR[local.status] || STATUS_LOCAL_COR[STATUS_LOCAL.VISITADO];
+    const isParaVisitar = local._origem === 'paraVisitar';
+    const cor = isParaVisitar
+      ? STATUS_LOCAL_COR[STATUS_LOCAL.PLANEJADO]
+      : (STATUS_LOCAL_COR[local.status] || STATUS_LOCAL_COR[STATUS_LOCAL.VISITADO]);
     const icone = TIPO_LOCAL_ICON[local.tipo] || TIPO_LOCAL_ICON[TIPO_LOCAL.RESTAURANTE];
-    const notaStr = notaParaEmoji(local.nota || 0, local.unanime || false);
+
+    // Para visitar: mostra ícone de interrogação em vez de nota
+    const notaStr = isParaVisitar
+      ? '🔜'
+      : notaParaEmoji(local.nota || 0, local.unanime || false);
 
     return L.divIcon({
       className: 'mapa-marcador-custom',
@@ -65,73 +89,35 @@ export default function Mapa() {
     });
   }
 
+  const totalNoMapa = todosOsPontos.length;
+  const totalLocais = locais.length;
+  const totalParaVisitar = paraVisitar.length;
+  const filtrosAtivos = locaisVisitadosFiltrados.length !== totalLocais || paraVisitarFiltrados.length !== totalParaVisitar;
+
   return (
-    <div className="mapa-wrapper" style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Botao toggle filtros mobile */}
+    <div className="mapa-wrapper">
       <button
         className="btn btn-small mapa-filtros-toggle"
         onClick={() => setFiltrosVisiveis(v => !v)}
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          zIndex: 1000,
-          background: 'var(--bg-card)',
-          color: 'var(--text)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow)',
-          padding: '10px 16px',
-          borderRadius: 'var(--radius)',
-          fontSize: '14px',
-          fontWeight: 500
-        }}
       >
         <span style={{ marginRight: '6px' }}>{filtrosVisiveis ? '✕' : '🔍'}</span>
         Filtros
-        {locaisFiltrados.length !== locais.length && (
-          <span
-            style={{
-              marginLeft: '8px',
-              background: 'var(--accent)',
-              color: 'white',
-              fontSize: '11px',
-              padding: '2px 6px',
-              borderRadius: '10px'
-            }}
-          >
-            {locaisFiltrados.length}
-          </span>
+        {filtrosAtivos && (
+          <span className="mapa-contador-badge">{totalNoMapa}</span>
         )}
       </button>
 
-      {/* Painel de filtros */}
       {filtrosVisiveis && (
         <FiltrosMapa
           filtros={filtros}
           onChange={setFiltros}
           onClose={() => setFiltrosVisiveis(false)}
-          totalResultados={locaisFiltrados.length}
+          totalResultados={totalNoMapa}
         />
       )}
 
-      {/* Contador de resultados */}
-      <div
-        className="mapa-contador"
-        style={{
-          position: 'absolute',
-          bottom: '12px',
-          left: '12px',
-          zIndex: 1000,
-          background: 'var(--bg-card)',
-          padding: '8px 14px',
-          borderRadius: 'var(--radius)',
-          boxShadow: 'var(--shadow)',
-          fontSize: '13px',
-          color: 'var(--text-secondary)',
-          fontWeight: 500
-        }}
-      >
-        {locaisFiltrados.length} {locaisFiltrados.length === 1 ? 'local' : 'locais'}
+      <div className="mapa-contador">
+        {totalNoMapa} {totalNoMapa === 1 ? 'local' : 'locais'}
       </div>
 
       <MapContainer
@@ -143,12 +129,13 @@ export default function Mapa() {
           attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MarcadoresAtualizaveis locaisFiltrados={locaisFiltrados} />
-        {locaisFiltrados.map(local => {
+        <MarcadoresAtualizaveis locaisFiltrados={todosOsPontos} />
+        {todosOsPontos.map(local => {
           if (local.lat == null || local.lng == null) return null;
+          const isParaVisitar = local._origem === 'paraVisitar';
           return (
             <Marker
-              key={local.id}
+              key={`${local._origem}-${local.id}`}
               position={[local.lat, local.lng]}
               icon={criarIconCustom(local)}
             >
@@ -157,69 +144,108 @@ export default function Mapa() {
                 closeButton={false}
                 className="popup-culinario"
               >
-                <MarcadorPopup
-                  local={local}
-                  onVerDetalhes={() => abrirFormulario(local)}
-                />
+                {isParaVisitar ? (
+                  <PopupParaVisitar
+                    local={local}
+                    onMarcarVisitado={() => abrirFormularioDeVisitar(local)}
+                  />
+                ) : (
+                  <MarcadorPopup
+                    local={local}
+                    onVerDetalhes={() => abrirFormulario(local)}
+                  />
+                )}
               </Popup>
             </Marker>
           );
         })}
       </MapContainer>
+    </div>
+  );
+}
 
-      <style>{`
-        .mapa-marcador-custom {
-          background: transparent !important;
-          border: none !important;
-        }
-        .marcador-pin {
-          width: 40px;
-          height: 40px;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-          border: 3px solid white;
-          position: relative;
-        }
-        .marcador-icone {
-          transform: rotate(45deg);
-          font-size: 18px;
-          line-height: 1;
-        }
-        .marcador-nota {
-          position: absolute;
-          bottom: -18px;
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 11px;
-          white-space: nowrap;
-          background: rgba(255,255,255,0.95);
-          padding: 2px 6px;
-          border-radius: 10px;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-          font-weight: 500;
-          color: var(--text);
-        }
-        .leaflet-popup-content-wrapper {
-          overflow: hidden;
-        }
-        @media (max-width: 640px) {
-          .mapa-filtros-toggle {
-            top: 8px !important;
-            right: 8px !important;
-            padding: 8px 12px !important;
-            font-size: 13px !important;
-          }
-          .mapa-contador {
-            bottom: 8px !important;
-            left: 8px !important;
-            font-size: 12px !important;
-          }
-        }
-      `}</style>
+function PopupParaVisitar({ local, onMarcarVisitado }) {
+  const tipoLabel = TIPO_LOCAL_LABEL[local.tipo] || 'Local';
+
+  return (
+    <div
+      className="popup-conteudo fade-in"
+      style={{
+        width: '260px',
+        maxWidth: '90vw',
+        background: 'var(--bg-card)',
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+        fontFamily: 'var(--font)',
+        padding: '16px'
+      }}
+    >
+      <span
+        style={{
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          fontWeight: 600,
+          color: 'var(--alert)',
+          background: 'var(--bg)',
+          padding: '3px 8px',
+          borderRadius: 'var(--radius-sm)',
+          display: 'inline-block',
+          marginBottom: '8px'
+        }}
+      >
+        🔜 {tipoLabel} · Quero Visitar
+      </span>
+
+      <h3
+        style={{
+          margin: '0 0 4px',
+          fontSize: '17px',
+          fontWeight: 600,
+          color: 'var(--text)',
+          lineHeight: 1.3
+        }}
+      >
+        {local.nome}
+      </h3>
+
+      {local.endereco && (
+        <p
+          style={{
+            margin: '0 0 12px',
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.4
+          }}
+        >
+          {local.endereco}
+        </p>
+      )}
+
+      {local.descricao && (
+        <p
+          style={{
+            margin: '0 0 12px',
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.45,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}
+        >
+          {local.descricao}
+        </p>
+      )}
+
+      <button
+        className="btn btn-small btn-success"
+        onClick={onMarcarVisitado}
+        style={{ width: '100%' }}
+      >
+        ✓ Marcar como visitado
+      </button>
     </div>
   );
 }

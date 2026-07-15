@@ -23,8 +23,9 @@ const ESTADO_INICIAL = {
   fotos: [],
   comidas: [],
   links: { site: '', tiktok: '', instagram: '' },
-  latitude: null,
-  longitude: null
+  lat: null,
+  lng: null,
+  dataVisita: ''
 };
 
 const MAX_COMIDAS = 10;
@@ -32,6 +33,7 @@ const MAX_COMIDAS = 10;
 export default function Formulario() {
   const {
     salvarLocal,
+    salvarParaVisitar,
     setAbaAtiva,
     localEditando,
     setLocalEditando,
@@ -43,19 +45,48 @@ export default function Formulario() {
   const [sugestoesEndereco, setSugestoesEndereco] = useState([]);
   const [buscandoEndereco, setBuscandoEndereco] = useState(false);
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+  const [buscandoNome, setBuscandoNome] = useState(false);
   const debounceRef = useRef(null);
+  const debounceNomeRef = useRef(null);
   const inputEnderecoRef = useRef(null);
+
+  const isPlanejado = form.status === STATUS_LOCAL.PLANEJADO;
+  const isRestaurante = form.tipo === TIPO_LOCAL.RESTAURANTE;
 
   // Preencher form quando editando
   useEffect(() => {
     if (localEditando) {
-      setForm({
+      const prefill = {
         ...ESTADO_INICIAL,
         ...localEditando,
         comidas: localEditando.comidas || [],
         fotos: localEditando.fotos || [],
         links: localEditando.links || { site: '', tiktok: '', instagram: '' }
-      });
+      };
+      // Compatibilidade backwards: converter latitude/longitude legados para lat/lng
+      if (localEditando.latitude != null && prefill.lat == null) {
+        prefill.lat = parseFloat(localEditando.latitude);
+      }
+      if (localEditando.longitude != null && prefill.lng == null) {
+        prefill.lng = parseFloat(localEditando.longitude);
+      }
+      // Garantir que dataVisita esteja no formato YYYY-MM-DD para input type="date"
+      if (localEditando.dataVisita) {
+        const d = new Date(localEditando.dataVisita);
+        if (!isNaN(d.getTime())) {
+          prefill.dataVisita = d.toISOString().split('T')[0];
+        }
+      }
+      // Backward compatibility: converte foto unica para array de fotos nos pratos
+      const comidasMigradas = (prefill.comidas || []).map(c => ({
+        ...c,
+        fotos: c.fotos || (c.foto ? [c.foto] : []),
+        notaUnanime: c.notaUnanime || false,
+        valorReais: c.valorReais ?? null
+      }));
+      prefill.comidas = comidasMigradas;
+
+      setForm(prefill);
     } else {
       setForm(ESTADO_INICIAL);
     }
@@ -94,11 +125,44 @@ export default function Formulario() {
     setForm(prev => ({
       ...prev,
       endereco: sugestao.display_name,
-      latitude: parseFloat(sugestao.lat),
-      longitude: parseFloat(sugestao.lon)
+      lat: parseFloat(sugestao.lat),
+      lng: parseFloat(sugestao.lon)
     }));
     setMostrarSugestoes(false);
     setSugestoesEndereco([]);
+  };
+
+  // Buscar endereço pelo nome do local (item 1)
+  const buscarEnderecoPorNome = useCallback(async (nome) => {
+    if (!nome || nome.length < 3) return;
+    setBuscandoNome(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nome)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'pt-BR' } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const resultado = data[0];
+        setForm(prev => ({
+          ...prev,
+          endereco: resultado.display_name,
+          lat: parseFloat(resultado.lat),
+          lng: parseFloat(resultado.lon)
+        }));
+      }
+    } catch (e) {
+      console.error('Erro ao buscar endereço pelo nome:', e);
+    } finally {
+      setBuscandoNome(false);
+    }
+  }, []);
+
+  const handleNomeChange = (value) => {
+    setForm(prev => ({ ...prev, nome: value }));
+    if (erros.nome) {
+      setErros(prev => { const n = { ...prev }; delete n.nome; return n; });
+    }
   };
 
   const handleChange = (field, value) => {
@@ -137,30 +201,85 @@ export default function Formulario() {
     const e = {};
     if (!form.nome.trim()) e.nome = 'Nome é obrigatório';
     if (!form.endereco.trim()) e.endereco = 'Endereço é obrigatório';
-    if (form.nota < -1 || form.nota > 5) e.nota = 'Nota deve estar entre -1 e 5';
-    if (form.tipo === TIPO_LOCAL.RESTAURANTE) {
-      form.comidas.forEach((c, i) => {
-        if (!c.nome.trim()) e[`comida_${i}_nome`] = 'Nome do prato é obrigatório';
-      });
+    // Nota e comidas só são validadas quando NÃO é planejado
+    if (!isPlanejado) {
+      if (form.nota < -1 || form.nota > 5) e.nota = 'Nota deve estar entre -1 e 5';
+      if (form.tipo === TIPO_LOCAL.RESTAURANTE) {
+        form.comidas.forEach((c, i) => {
+          if (!c.nome.trim()) e[`comida_${i}_nome`] = 'Nome do prato é obrigatório';
+        });
+      }
     }
     setErros(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSalvar = () => {
+  const geocodificarEndereco = useCallback(async (endereco) => {
+    if (!endereco || endereco.length < 3) return null;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'pt-BR' } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          display_name: data[0].display_name
+        };
+      }
+    } catch (e) {
+      console.error('Erro no geocoding automatico:', e);
+    }
+    return null;
+  }, []);
+
+  const handleSalvar = async () => {
     if (!validar()) return;
 
-    const payload = {
-      ...form,
+    let payload = { ...form };
+
+    // Geocoding automatico se endereco existe mas sem coordenadas
+    if ((payload.lat == null || payload.lng == null) && payload.endereco?.trim()) {
+      const resultado = await geocodificarEndereco(payload.endereco.trim());
+      if (resultado) {
+        payload.lat = resultado.lat;
+        payload.lng = resultado.lng;
+        if (!payload.endereco.includes(resultado.display_name.substring(0, 20))) {
+          payload.endereco = resultado.display_name;
+        }
+      }
+    }
+
+    payload = {
+      ...payload,
       id: localEditando?.id || undefined,
       atualizadoEm: new Date().toISOString()
     };
 
-    salvarLocal(payload);
-
-    // Se veio de "Para Visitar", remover da lista
-    if (localEditando?._idParaVisitar) {
-      excluirParaVisitar(localEditando._idParaVisitar);
+    // Se status é PLANEJADO, salva em "Para Visitar" em vez de locais visitados
+    if (isPlanejado) {
+      const itemParaVisitar = {
+        nome: payload.nome,
+        endereco: payload.endereco,
+        descricao: payload.descricao,
+        tipo: payload.tipo,
+        links: payload.links,
+        lat: payload.lat,
+        lng: payload.lng,
+        atualizadoEm: payload.atualizadoEm
+      };
+      if (localEditando?._idParaVisitar) {
+        itemParaVisitar.id = localEditando._idParaVisitar;
+      }
+      salvarParaVisitar(itemParaVisitar);
+    } else {
+      salvarLocal(payload);
+      // Se veio de "Para Visitar", remover da lista
+      if (localEditando?._idParaVisitar) {
+        excluirParaVisitar(localEditando._idParaVisitar);
+      }
     }
 
     setLocalEditando(null);
@@ -172,12 +291,10 @@ export default function Formulario() {
     setAbaAtiva(ABAS.MAPA);
   };
 
-  const isRestaurante = form.tipo === TIPO_LOCAL.RESTAURANTE;
-
   return (
     <div className="fade-in" style={containerStyle}>
       <h2 style={titleStyle}>
-        {localEditando?.id ? 'Editar Local' : 'Adicionar Local'}
+        {localEditando?.id ? 'Editar Local' : isPlanejado ? 'Adicionar para Visitar' : 'Adicionar Local'}
       </h2>
 
       {/* Tipo */}
@@ -223,14 +340,28 @@ export default function Formulario() {
       {/* Nome */}
       <div style={fieldStyle}>
         <label style={labelStyle}>Nome do local</label>
-        <input
-          type="text"
-          className="input"
-          value={form.nome}
-          onChange={(e) => handleChange('nome', e.target.value)}
-          placeholder="Ex: Restaurante do Zé"
-        />
-        {erros.nome && <span style={erroStyle}>{erros.nome}</span>}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <input
+              type="text"
+              className="input"
+              value={form.nome}
+              onChange={(e) => handleNomeChange(e.target.value)}
+              placeholder="Ex: Restaurante do Zé"
+            />
+            {erros.nome && <span style={erroStyle}>{erros.nome}</span>}
+          </div>
+          <button
+            type="button"
+            className="btn btn-small btn-secondary"
+            onClick={() => buscarEnderecoPorNome(form.nome)}
+            disabled={!form.nome?.trim() || form.nome.length < 3 || buscandoNome}
+            style={{ whiteSpace: 'nowrap', padding: '10px 14px' }}
+            title="Buscar endereço pelo nome do local"
+          >
+            {buscandoNome ? '...' : '🔍 Buscar'}
+          </button>
+        </div>
       </div>
 
       {/* Endereco com autocomplete */}
@@ -267,6 +398,49 @@ export default function Formulario() {
         {erros.endereco && <span style={erroStyle}>{erros.endereco}</span>}
       </div>
 
+      {/* Coordenadas manuais */}
+      <div style={coordRowStyle}>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>Latitude</label>
+          <input
+            type="number"
+            step="any"
+            className="input"
+            value={form.lat ?? ''}
+            onChange={(e) => handleChange('lat', e.target.value === '' ? null : parseFloat(e.target.value))}
+            placeholder="-23.5505"
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>Longitude</label>
+          <input
+            type="number"
+            step="any"
+            className="input"
+            value={form.lng ?? ''}
+            onChange={(e) => handleChange('lng', e.target.value === '' ? null : parseFloat(e.target.value))}
+            placeholder="-46.6333"
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+          <button
+            type="button"
+            className="btn btn-small btn-secondary"
+            onClick={async () => {
+              if (!form.endereco?.trim()) return;
+              const r = await geocodificarEndereco(form.endereco.trim());
+              if (r) {
+                setForm(prev => ({ ...prev, lat: r.lat, lng: r.lng }));
+              }
+            }}
+            disabled={!form.endereco?.trim()}
+            style={buscarCoordBtnStyle}
+          >
+            🔍 Buscar
+          </button>
+        </div>
+      </div>
+
       {/* Descricao */}
       <div style={fieldStyle}>
         <label style={labelStyle}>Descrição</label>
@@ -278,55 +452,6 @@ export default function Formulario() {
           rows={3}
           style={{ resize: 'vertical', minHeight: '80px' }}
         />
-      </div>
-
-      {/* Nota */}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>
-          Nota geral
-          <span style={notaPreviewStyle}>
-            {' '}{notaParaEmoji(form.nota, form.notaUnanime)}
-          </span>
-          <span style={notaLabelStyle}> {labelNota(form.nota)}</span>
-        </label>
-        <input
-          type="range"
-          min={-1}
-          max={5}
-          step={0.5}
-          value={form.nota}
-          onChange={(e) => handleChange('nota', parseFloat(e.target.value))}
-          style={sliderStyle}
-        />
-        <div style={sliderLabelsStyle}>
-          <span style={sliderLabelStyle}>-1</span>
-          <span style={sliderLabelStyle}>0</span>
-          <span style={sliderLabelStyle}>1</span>
-          <span style={sliderLabelStyle}>2</span>
-          <span style={sliderLabelStyle}>3</span>
-          <span style={sliderLabelStyle}>4</span>
-          <span style={sliderLabelStyle}>5</span>
-        </div>
-      </div>
-
-      {/* Checkboxes */}
-      <div style={checkboxRowStyle}>
-        <label style={checkboxStyle}>
-          <input
-            type="checkbox"
-            checked={form.notaUnanime}
-            onChange={(e) => handleChange('notaUnanime', e.target.checked)}
-          />
-          <span>Nota unanime</span>
-        </label>
-        <label style={checkboxStyle}>
-          <input
-            type="checkbox"
-            checked={form.homeoffice}
-            onChange={(e) => handleChange('homeoffice', e.target.checked)}
-          />
-          <span>Homeoffice</span>
-        </label>
       </div>
 
       {/* Links */}
@@ -357,48 +482,113 @@ export default function Formulario() {
         </div>
       </div>
 
-      {/* Fotos do local */}
-      <div style={fieldStyle}>
-        <FotoUploader
-          fotos={form.fotos}
-          onChange={(fotos) => handleChange('fotos', fotos)}
-          maxFotos={20}
-          label="Fotos do local"
-        />
-      </div>
-
-      {/* Secao Comidas - apenas para restaurante */}
-      {isRestaurante && (
-        <div style={secaoStyle}>
-          <div style={secaoHeaderStyle}>
-            <h3 style={secaoTituloStyle}>Pratos provados</h3>
-            <span style={contadorStyle}>
-              {form.comidas.length} / {MAX_COMIDAS}
-            </span>
+      {/* Campos exclusivos de locais VISITADOS (não aparecem quando PLANEJADO) */}
+      {!isPlanejado && (
+        <>
+          {/* Nota */}
+          <div style={fieldStyle}>
+            <label style={labelStyle}>
+              Nota geral
+              <span style={notaPreviewStyle}>
+                {' '}{notaParaEmoji(form.nota, form.notaUnanime)}
+              </span>
+              <span style={notaLabelStyle}> {labelNota(form.nota)}</span>
+            </label>
+            <input
+              type="range"
+              min={-1}
+              max={5}
+              step={0.5}
+              value={form.nota}
+              onChange={(e) => handleChange('nota', parseFloat(e.target.value))}
+              style={sliderStyle}
+            />
+            <div style={sliderLabelsStyle}>
+              <span style={sliderLabelStyle}>-1</span>
+              <span style={sliderLabelStyle}>0</span>
+              <span style={sliderLabelStyle}>1</span>
+              <span style={sliderLabelStyle}>2</span>
+              <span style={sliderLabelStyle}>3</span>
+              <span style={sliderLabelStyle}>4</span>
+              <span style={sliderLabelStyle}>5</span>
+            </div>
           </div>
 
-          {form.comidas.map((comida, idx) => (
-            <ComidaItem
-              key={comida.id || idx}
-              comida={comida}
-              index={idx}
-              onChange={handleComidaChange}
-              onRemove={handleRemoverComida}
-              erroNome={erros[`comida_${idx}_nome`]}
-            />
-          ))}
+          {/* Checkboxes */}
+          <div style={checkboxRowStyle}>
+            <label style={checkboxStyle}>
+              <input
+                type="checkbox"
+                checked={form.notaUnanime}
+                onChange={(e) => handleChange('notaUnanime', e.target.checked)}
+              />
+              <span>Nota unanime</span>
+            </label>
+            <label style={checkboxStyle}>
+              <input
+                type="checkbox"
+                checked={form.homeoffice}
+                onChange={(e) => handleChange('homeoffice', e.target.checked)}
+              />
+              <span>Homeoffice</span>
+            </label>
+          </div>
 
-          {form.comidas.length < MAX_COMIDAS && (
-            <button
-              type="button"
-              onClick={handleAdicionarComida}
-              className="btn btn-secondary"
-              style={addComidaBtnStyle}
-            >
-              + Adicionar comida
-            </button>
+          {/* Data de visita */}
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Data da visita</label>
+            <input
+              type="date"
+              className="input"
+              value={form.dataVisita}
+              onChange={(e) => handleChange('dataVisita', e.target.value)}
+            />
+          </div>
+
+          {/* Fotos do local */}
+          <div style={fieldStyle}>
+            <FotoUploader
+              fotos={form.fotos}
+              onChange={(fotos) => handleChange('fotos', fotos)}
+              maxFotos={20}
+              label="Fotos do local"
+            />
+          </div>
+
+          {/* Secao Comidas - apenas para restaurante visitado */}
+          {isRestaurante && (
+            <div style={secaoStyle}>
+              <div style={secaoHeaderStyle}>
+                <h3 style={secaoTituloStyle}>Pratos provados</h3>
+                <span style={contadorStyle}>
+                  {form.comidas.length} / {MAX_COMIDAS}
+                </span>
+              </div>
+
+              {form.comidas.map((comida, idx) => (
+                <ComidaItem
+                  key={comida.id || idx}
+                  comida={comida}
+                  index={idx}
+                  onChange={handleComidaChange}
+                  onRemove={handleRemoverComida}
+                  erroNome={erros[`comida_${idx}_nome`]}
+                />
+              ))}
+
+              {form.comidas.length < MAX_COMIDAS && (
+                <button
+                  type="button"
+                  onClick={handleAdicionarComida}
+                  className="btn btn-secondary"
+                  style={addComidaBtnStyle}
+                >
+                  + Adicionar comida
+                </button>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Acoes */}
@@ -508,6 +698,19 @@ const sugestaoItemStyle = {
   color: 'var(--text)',
   borderBottom: '1px solid var(--border)',
   transition: 'background 0.15s'
+};
+
+const coordRowStyle = {
+  display: 'flex',
+  gap: '10px',
+  marginBottom: '18px',
+  alignItems: 'flex-end'
+};
+
+const buscarCoordBtnStyle = {
+  padding: '10px 14px',
+  fontSize: '13px',
+  whiteSpace: 'nowrap'
 };
 
 const notaPreviewStyle = {
