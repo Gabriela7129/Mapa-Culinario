@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#D4A574"/>
+  <rect x="42" y="42" width="428" height="428" rx="76" fill="#FAF7F2"/>
+  <g fill="#2D2A26">
+    <!-- Garfo -->
+    <rect x="210" y="215" width="16" height="132" rx="8"/>
+    <rect x="192" y="162" width="10" height="72" rx="5"/>
+    <rect x="212" y="162" width="10" height="72" rx="5"/>
+    <rect x="232" y="162" width="10" height="72" rx="5"/>
+    <rect x="186" y="218" width="64" height="16" rx="8"/>
+    <!-- Faca -->
+    <rect x="298" y="225" width="16" height="122" rx="8"/>
+    <polygon points="314,225 314,150 340,190 340,225"/>
+  </g>
+</svg>
