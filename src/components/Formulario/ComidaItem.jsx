@@ -1,5 +1,5 @@
 import React from 'react';
-import { notaParaEmoji, precoParaEmoji, labelNota, labelPreco } from '../../utils/notaEmoji.js';
+import { notaParaEmoji, precoParaEmoji, labelNota, labelPreco, descricaoNotaPrato, descricaoPreco } from '../../utils/notaEmoji.js';
 import FotoUploader from './FotoUploader.jsx';
 
 /**
@@ -40,7 +40,7 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
       </div>
 
       <div style={fieldStyle}>
-        <label style={labelStyle}>Descricao</label>
+        <label style={labelStyle}>Descrição</label>
         <textarea
           className="input"
           value={comida.descricao || ''}
@@ -71,11 +71,12 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
             <span style={sliderLabelStyle}>-1</span>
             <span style={sliderLabelStyle}>5</span>
           </div>
+          <div style={descricaoSliderStyle}>{descricaoNotaPrato(comida.nota || 0)}</div>
         </div>
 
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>
-            Preco
+            Preço
             <span style={previewStyle}> {precoParaEmoji(comida.preco || 0)}</span>
             <span style={labelPreviewStyle}> {labelPreco(comida.preco || 0)}</span>
           </label>
@@ -92,6 +93,7 @@ export default function ComidaItem({ comida, index, onChange, onRemove, erroNome
             <span style={sliderLabelStyle}>-1</span>
             <span style={sliderLabelStyle}>5</span>
           </div>
+          <div style={descricaoSliderStyle}>{descricaoPreco(comida.preco || 0)}</div>
         </div>
       </div>
 
@@ -212,6 +214,14 @@ const sliderLabelsStyle = {
 const sliderLabelStyle = {
   fontSize: '10px',
   color: 'var(--text-secondary)'
+};
+
+const descricaoSliderStyle = {
+  fontSize: '11px',
+  color: 'var(--text-secondary)',
+  fontStyle: 'italic',
+  marginTop: '4px',
+  lineHeight: '1.4'
 };
 
 const erroStyle = {

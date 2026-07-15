@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { localStorageService } from '../services/localStorage.js';
 import { googleDriveService } from '../services/googleDrive.js';
 import { ABAS, TIPO_LOCAL, STATUS_LOCAL } from '../utils/tipos.js';
+import { migrarCoordenadasArray } from '../utils/coordenadas.js';
 
 const AppContext = createContext(null);
 
@@ -26,8 +27,8 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const config = localStorageService.getConfig();
     const dados = localStorageService.getDados();
-    setLocais(dados.locais || []);
-    setParaVisitar(dados.paraVisitar || []);
+    setLocais(migrarCoordenadasArray(dados.locais || []));
+    setParaVisitar(migrarCoordenadasArray(dados.paraVisitar || []));
     setSenhaConfigurada(!!config.senha);
     setAutenticado(!config.senha); // Se nao tem senha, ja esta autenticado
     setLoading(false);
@@ -97,14 +98,10 @@ export function AppProvider({ children }) {
       tipo: item.tipo || TIPO_LOCAL.RESTAURANTE,
       status: STATUS_LOCAL.VISITADO,
       links: item.links || {},
-      _idParaVisitar: item.id
+      _idParaVisitar: item.id,
+      lat: item.lat ?? null,
+      lng: item.lng ?? null
     };
-    // Preservar coordenadas se existirem (bug 13)
-    if (item.lat != null) prefill.lat = item.lat;
-    if (item.lng != null) prefill.lng = item.lng;
-    // Compatibilidade backwards com latitude/longitude
-    if (item.latitude != null && prefill.lat == null) prefill.lat = parseFloat(item.latitude);
-    if (item.longitude != null && prefill.lng == null) prefill.lng = parseFloat(item.longitude);
     setLocalEditando(prefill);
     setAbaAtiva(ABAS.FORMULARIO);
   }, []);

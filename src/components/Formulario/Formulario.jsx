@@ -7,7 +7,7 @@ import {
   STATUS_LOCAL_LABEL,
   ABAS
 } from '../../utils/tipos.js';
-import { notaParaEmoji, labelNota } from '../../utils/notaEmoji.js';
+import { notaParaEmoji, labelNota, descricaoNotaLocal } from '../../utils/notaEmoji.js';
 import ComidaItem from './ComidaItem.jsx';
 import FotoUploader from './FotoUploader.jsx';
 
@@ -45,10 +45,11 @@ export default function Formulario() {
   const [sugestoesEndereco, setSugestoesEndereco] = useState([]);
   const [buscandoEndereco, setBuscandoEndereco] = useState(false);
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
-  const [buscandoNome, setBuscandoNome] = useState(false);
+  const [sugestoesNome, setSugestoesNome] = useState([]);
+  const [mostrarSugestoesNome, setMostrarSugestoesNome] = useState(false);
   const debounceRef = useRef(null);
-  const debounceNomeRef = useRef(null);
   const inputEnderecoRef = useRef(null);
+  const inputNomeRef = useRef(null);
 
   const isPlanejado = form.status === STATUS_LOCAL.PLANEJADO;
   const isRestaurante = form.tipo === TIPO_LOCAL.RESTAURANTE;
@@ -63,13 +64,6 @@ export default function Formulario() {
         fotos: localEditando.fotos || [],
         links: localEditando.links || { site: '', tiktok: '', instagram: '' }
       };
-      // Compatibilidade backwards: converter latitude/longitude legados para lat/lng
-      if (localEditando.latitude != null && prefill.lat == null) {
-        prefill.lat = parseFloat(localEditando.latitude);
-      }
-      if (localEditando.longitude != null && prefill.lng == null) {
-        prefill.lng = parseFloat(localEditando.longitude);
-      }
       // Garantir que dataVisita esteja no formato YYYY-MM-DD para input type="date"
       if (localEditando.dataVisita) {
         const d = new Date(localEditando.dataVisita);
@@ -132,37 +126,43 @@ export default function Formulario() {
     setSugestoesEndereco([]);
   };
 
-  // Buscar endereço pelo nome do local (item 1)
-  const buscarEnderecoPorNome = useCallback(async (nome) => {
-    if (!nome || nome.length < 3) return;
-    setBuscandoNome(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nome)}&format=json&limit=1`,
-        { headers: { 'Accept-Language': 'pt-BR' } }
-      );
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const resultado = data[0];
-        setForm(prev => ({
-          ...prev,
-          endereco: resultado.display_name,
-          lat: parseFloat(resultado.lat),
-          lng: parseFloat(resultado.lon)
-        }));
-      }
-    } catch (e) {
-      console.error('Erro ao buscar endereço pelo nome:', e);
-    } finally {
-      setBuscandoNome(false);
-    }
-  }, []);
-
   const handleNomeChange = (value) => {
     setForm(prev => ({ ...prev, nome: value }));
     if (erros.nome) {
       setErros(prev => { const n = { ...prev }; delete n.nome; return n; });
     }
+    // Autocomplete via Nominatim (igual ao endereço)
+    if (value.length >= 3) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&limit=5`,
+            { headers: { 'Accept-Language': 'pt-BR' } }
+          );
+          const data = await res.json();
+          setSugestoesNome(data || []);
+          setMostrarSugestoesNome((data || []).length > 0);
+        } catch (e) {
+          console.error('Erro ao buscar nome:', e);
+        }
+      }, 400);
+    } else {
+      setSugestoesNome([]);
+      setMostrarSugestoesNome(false);
+    }
+  };
+
+  const selecionarNome = (item) => {
+    setForm(prev => ({
+      ...prev,
+      nome: item.name || item.display_name.split(',')[0],
+      endereco: item.display_name,
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon)
+    }));
+    setMostrarSugestoesNome(false);
+    setSugestoesNome([]);
   };
 
   const handleChange = (field, value) => {
@@ -337,31 +337,36 @@ export default function Formulario() {
         </div>
       </div>
 
-      {/* Nome */}
+      {/* Nome com autocomplete */}
       <div style={fieldStyle}>
         <label style={labelStyle}>Nome do local</label>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <input
-              type="text"
-              className="input"
-              value={form.nome}
-              onChange={(e) => handleNomeChange(e.target.value)}
-              placeholder="Ex: Restaurante do Zé"
-            />
-            {erros.nome && <span style={erroStyle}>{erros.nome}</span>}
-          </div>
-          <button
-            type="button"
-            className="btn btn-small btn-secondary"
-            onClick={() => buscarEnderecoPorNome(form.nome)}
-            disabled={!form.nome?.trim() || form.nome.length < 3 || buscandoNome}
-            style={{ whiteSpace: 'nowrap', padding: '10px 14px' }}
-            title="Buscar endereço pelo nome do local"
-          >
-            {buscandoNome ? '...' : '🔍 Buscar'}
-          </button>
+        <div style={{ position: 'relative' }}>
+          <input
+            ref={inputNomeRef}
+            type="text"
+            className="input"
+            value={form.nome}
+            onChange={(e) => handleNomeChange(e.target.value)}
+            onFocus={() => form.nome.length >= 2 && sugestoesNome.length > 0 && setMostrarSugestoesNome(true)}
+            placeholder="Ex: Restaurante do Zé"
+          />
+          {mostrarSugestoesNome && sugestoesNome.length > 0 && (
+            <ul style={sugestoesStyle}>
+              {sugestoesNome.map((s, i) => (
+                <li
+                  key={i}
+                  onClick={() => selecionarNome(s)}
+                  style={sugestaoItemStyle}
+                  onMouseEnter={(e) => e.target.style.background = 'var(--bg)'}
+                  onMouseLeave={(e) => e.target.style.background = 'var(--bg-card)'}
+                >
+                  {s.display_name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+        {erros.nome && <span style={erroStyle}>{erros.nome}</span>}
       </div>
 
       {/* Endereco com autocomplete */}
@@ -396,49 +401,6 @@ export default function Formulario() {
           )}
         </div>
         {erros.endereco && <span style={erroStyle}>{erros.endereco}</span>}
-      </div>
-
-      {/* Coordenadas manuais */}
-      <div style={coordRowStyle}>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Latitude</label>
-          <input
-            type="number"
-            step="any"
-            className="input"
-            value={form.lat ?? ''}
-            onChange={(e) => handleChange('lat', e.target.value === '' ? null : parseFloat(e.target.value))}
-            placeholder="-23.5505"
-          />
-        </div>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Longitude</label>
-          <input
-            type="number"
-            step="any"
-            className="input"
-            value={form.lng ?? ''}
-            onChange={(e) => handleChange('lng', e.target.value === '' ? null : parseFloat(e.target.value))}
-            placeholder="-46.6333"
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <button
-            type="button"
-            className="btn btn-small btn-secondary"
-            onClick={async () => {
-              if (!form.endereco?.trim()) return;
-              const r = await geocodificarEndereco(form.endereco.trim());
-              if (r) {
-                setForm(prev => ({ ...prev, lat: r.lat, lng: r.lng }));
-              }
-            }}
-            disabled={!form.endereco?.trim()}
-            style={buscarCoordBtnStyle}
-          >
-            🔍 Buscar
-          </button>
-        </div>
       </div>
 
       {/* Descricao */}
@@ -512,6 +474,7 @@ export default function Formulario() {
               <span style={sliderLabelStyle}>4</span>
               <span style={sliderLabelStyle}>5</span>
             </div>
+            <div style={descricaoSliderStyle}>{descricaoNotaLocal(form.nota)}</div>
           </div>
 
           {/* Checkboxes */}
@@ -700,19 +663,6 @@ const sugestaoItemStyle = {
   transition: 'background 0.15s'
 };
 
-const coordRowStyle = {
-  display: 'flex',
-  gap: '10px',
-  marginBottom: '18px',
-  alignItems: 'flex-end'
-};
-
-const buscarCoordBtnStyle = {
-  padding: '10px 14px',
-  fontSize: '13px',
-  whiteSpace: 'nowrap'
-};
-
 const notaPreviewStyle = {
   fontSize: '18px',
   letterSpacing: '2px'
@@ -792,6 +742,14 @@ const contadorStyle = {
 const addComidaBtnStyle = {
   width: '100%',
   marginTop: '8px'
+};
+
+const descricaoSliderStyle = {
+  fontSize: '11px',
+  color: 'var(--text-secondary)',
+  fontStyle: 'italic',
+  marginTop: '4px',
+  lineHeight: '1.4'
 };
 
 const acoesStyle = {
