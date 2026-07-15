@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Mapa-Culinario/sw.js', { scope: '/Mapa-Culinario/' })})}
