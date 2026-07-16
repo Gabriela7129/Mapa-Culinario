@@ -5,7 +5,12 @@ import { TIPO_LOCAL_LABEL, STATUS_LOCAL_LABEL, STATUS_LOCAL_COR, STATUS_LOCAL } 
 export default function MarcadorPopup({ local, onVerDetalhes }) {
   const [fotoAtual, setFotoAtual] = useState(0);
 
-  const fotos = local.fotos || [];
+  const fotosLocal = local.fotos || [];
+  const fotosComidas = (local.comidas || [])
+    .map(c => c.fotos || (c.foto ? [c.foto] : []))
+    .flat()
+    .filter(Boolean);
+  const fotos = [...fotosLocal, ...fotosComidas];
   const notaStr = notaParaEmoji(local.nota || 0, local.unanime || false);
   const tipoLabel = TIPO_LOCAL_LABEL[local.tipo] || 'Local';
   const statusLabel = STATUS_LOCAL_LABEL[local.status] || 'Local';
