@@ -1,16 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Dimensions, TouchableOpacity, Text } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
-import { Comida, LocalVisitado, NovaDescoberta } from '../types';
 
 const { width, height } = Dimensions.get('window');
+
+type Category = 'all' | 'comida' | 'local' | 'descoberta';
+
+const CATEGORIES: { key: Category; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'comida', label: 'Comida' },
+  { key: 'local', label: 'Visitado' },
+  { key: 'descoberta', label: 'Para ir' },
+];
 
 export default function MapaScreen() {
   const navigation = useNavigation<any>();
   const { comidas, locaisVisitados, novasDescobertas } = useApp();
-  const [selectedType, setSelectedType] = useState<'all' | 'comida' | 'local' | 'descoberta'>('all');
+  const [selectedType, setSelectedType] = useState<Category>('all');
 
   const allItems = [
     ...comidas.map(c => ({ ...c, category: 'comida' as const })),
@@ -18,8 +26,8 @@ export default function MapaScreen() {
     ...novasDescobertas.map(d => ({ ...d, category: 'descoberta' as const })),
   ];
 
-  const filteredItems = selectedType === 'all' 
-    ? allItems 
+  const filteredItems = selectedType === 'all'
+    ? allItems
     : allItems.filter(item => item.category === selectedType);
 
   const initialRegion = {
@@ -29,21 +37,12 @@ export default function MapaScreen() {
     longitudeDelta: 0.0421,
   };
 
-  function getMarkerColor(category: string) {
+  function getMarkerColor(category: Category) {
     switch (category) {
-      case 'comida': return '#FF6B6B';
-      case 'local': return '#4ECDC4';
-      case 'descoberta': return '#FFD93D';
-      default: return '#999';
-    }
-  }
-
-  function getMarkerEmoji(category: string) {
-    switch (category) {
-      case 'comida': return '🍽️';
-      case 'local': return '📍';
-      case 'descoberta': return '⭐';
-      default: return '📍';
+      case 'comida': return '#9CA3AF'; // cinza neutro
+      case 'local': return '#FBBF24'; // amarelo
+      case 'descoberta': return '#3B82F6'; // azul
+      default: return '#9CA3AF';
     }
   }
 
@@ -68,34 +67,23 @@ export default function MapaScreen() {
       </MapView>
 
       <View style={styles.filterContainer}>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedType === 'all' && styles.filterActive]}
-          onPress={() => setSelectedType('all')}
-        >
-          <Text style={styles.filterText}>Todos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedType === 'comida' && styles.filterActive]}
-          onPress={() => setSelectedType('comida')}
-        >
-          <Text style={styles.filterText}>🍽️ Comida</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedType === 'local' && styles.filterActive]}
-          onPress={() => setSelectedType('local')}
-        >
-          <Text style={styles.filterText}>📍 Locais</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedType === 'descoberta' && styles.filterActive]}
-          onPress={() => setSelectedType('descoberta')}
-        >
-          <Text style={styles.filterText}>⭐ Descobertas</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.legend}>
-        <Text style={styles.legendText}>🍽️ Comida | 📍 Local Visitado | ⭐ Descoberta</Text>
+        {CATEGORIES.map(cat => {
+          const active = selectedType === cat.key;
+          return (
+            <TouchableOpacity
+              key={cat.key}
+              style={[
+                styles.filterButton,
+                active && styles.filterActive,
+              ]}
+              onPress={() => setSelectedType(cat.key)}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -104,6 +92,7 @@ export default function MapaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FAFAFA',
   },
   map: {
     width: width,
@@ -111,46 +100,33 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     position: 'absolute',
-    top: 50,
-    left: 10,
-    right: 10,
+    top: 52,
+    left: 16,
+    right: 16,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 12,
-    padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   filterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginHorizontal: 2,
+    borderRadius: 999,
   },
   filterActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#111827',
   },
   filterText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
   },
-  legend: {
-    position: 'absolute',
-    bottom: 100,
-    left: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 8,
-    padding: 10,
-    alignItems: 'center',
-  },
-  legendText: {
-    fontSize: 14,
-    color: '#333',
+  filterTextActive: {
+    color: '#FFFFFF',
   },
 });
