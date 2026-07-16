@@ -117,7 +117,7 @@ html, body, #root {
 
 /* Mapa base mais limpo - filtros visuais do OpenStreetMap */
 .leaflet-tile {
-  filter: grayscale(0.2) contrast(0.95) brightness(1.05);
+  filter: grayscale(1) contrast(0.95) brightness(1.05);
   opacity: 0.85;
 }
 
