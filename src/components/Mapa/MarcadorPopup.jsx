@@ -57,7 +57,7 @@ export default function MarcadorPopup({ local, onVerDetalhes }) {
           <span
             className="popup-badge popup-badge-status"
             style={{
-              backgroundColor: STATUS_LOCAL_COR[STATUS_LOCAL.VISITADO],
+              backgroundColor: STATUS_LOCAL_COR[local.status] || STATUS_LOCAL_COR[STATUS_LOCAL.VISITADO],
               color: '#fff'
             }}
           >

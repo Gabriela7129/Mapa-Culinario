@@ -101,13 +101,13 @@ export default function Mapa() {
             <CircleMarker
               key={`${local._origem}-${local.id}`}
               center={[local.lat, local.lng]}
-              radius={10}
+              radius={8}
               pathOptions={{
                 fillColor: cor,
-                color: '#fff',
-                weight: 2.5,
-                fillOpacity: 0.85,
-                opacity: 0.9
+                color: '#FFFFFF',
+                weight: 1.5,
+                fillOpacity: 0.9,
+                opacity: 1
               }}
             >
               <Popup

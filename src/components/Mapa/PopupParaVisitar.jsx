@@ -10,7 +10,7 @@ export default function PopupParaVisitar({ local, onMarcarVisitado }) {
         className="popup-badge"
         style={{
           color: STATUS_LOCAL_COR[STATUS_LOCAL.PLANEJADO],
-          background: 'rgba(59, 130, 246, 0.08)'
+          background: 'rgba(107, 114, 128, 0.08)'
         }}
       >
         {tipoLabel} · Quero Visitar
