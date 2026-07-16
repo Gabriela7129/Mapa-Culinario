@@ -105,6 +105,22 @@ html, body, #root {
   height: 100%;
 }
 
+/* Marcadores mais discretos */
+.leaflet-marker-pane circle {
+  transition: all 0.2s ease;
+}
+
+.leaflet-marker-pane circle:hover {
+  stroke: #1F2937 !important;
+  stroke-width: 2 !important;
+}
+
+/* Mapa base mais limpo - filtros visuais do OpenStreetMap */
+.leaflet-tile {
+  filter: grayscale(0.2) contrast(0.95) brightness(1.05);
+  opacity: 0.85;
+}
+
 .mapa-filtros-toggle {
   position: absolute;
   top: 12px;
