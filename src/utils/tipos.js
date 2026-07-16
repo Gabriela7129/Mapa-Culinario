@@ -24,8 +24,8 @@ export const STATUS_LOCAL_LABEL = {
 };
 
 export const STATUS_LOCAL_COR = {
-  [STATUS_LOCAL.VISITADO]: '#7BAF8C',
-  [STATUS_LOCAL.PLANEJADO]: '#E8A87C'
+  [STATUS_LOCAL.VISITADO]: '#FBBF24', // amarelo
+  [STATUS_LOCAL.PLANEJADO]: '#3B82F6' // azul
 };
 
 export const FILTROS_PADRAO = {
