@@ -1,87 +1,33 @@
 import React from 'react';
-import { TIPO_LOCAL_LABEL } from '../../utils/tipos.js';
+import { TIPO_LOCAL_LABEL, STATUS_LOCAL_COR, STATUS_LOCAL } from '../../utils/tipos.js';
 
 export default function PopupParaVisitar({ local, onMarcarVisitado }) {
   const tipoLabel = TIPO_LOCAL_LABEL[local.tipo] || 'Local';
 
   return (
-    <div
-      className="popup-conteudo fade-in"
-      style={{
-        width: '260px',
-        maxWidth: '90vw',
-        background: 'var(--bg-card)',
-        borderRadius: 'var(--radius)',
-        overflow: 'hidden',
-        fontFamily: 'var(--font)',
-        padding: '16px'
-      }}
-    >
+    <div className="popup-conteudo fade-in">
       <span
+        className="popup-badge"
         style={{
-          fontSize: '11px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          fontWeight: 600,
-          color: 'var(--alert)',
-          background: 'var(--bg)',
-          padding: '3px 8px',
-          borderRadius: 'var(--radius-sm)',
-          display: 'inline-block',
-          marginBottom: '8px'
+          color: STATUS_LOCAL_COR[STATUS_LOCAL.PLANEJADO],
+          background: 'rgba(59, 130, 246, 0.08)'
         }}
       >
-        🔜 {tipoLabel} · Quero Visitar
+        {tipoLabel} · Quero Visitar
       </span>
 
-      <h3
-        style={{
-          margin: '0 0 4px',
-          fontSize: '17px',
-          fontWeight: 600,
-          color: 'var(--text)',
-          lineHeight: 1.3
-        }}
-      >
-        {local.nome}
-      </h3>
+      <h3 className="popup-nome">{local.nome}</h3>
 
-      {local.endereco && (
-        <p
-          style={{
-            margin: '0 0 12px',
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.4
-          }}
-        >
-          {local.endereco}
-        </p>
-      )}
+      {local.endereco && <p className="popup-endereco">{local.endereco}</p>}
 
-      {local.descricao && (
-        <p
-          style={{
-            margin: '0 0 12px',
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.45,
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }}
-        >
-          {local.descricao}
-        </p>
-      )}
+      {local.descricao && <p className="popup-descricao">{local.descricao}</p>}
 
       <button
-        className="btn btn-small btn-success"
+        className="btn btn-small"
         onClick={onMarcarVisitado}
-        style={{ width: '100%' }}
+        style={{ width: '100%', marginTop: '4px' }}
       >
-        ✓ Marcar como visitado
+        Marcar como visitado
       </button>
     </div>
   );

@@ -59,9 +59,10 @@ export default function Mapa() {
       <button
         className="btn btn-small mapa-filtros-toggle"
         onClick={() => setFiltrosVisiveis(v => !v)}
+        aria-label="Mostrar filtros"
+        title="Filtros"
       >
-        <span style={{ marginRight: '6px' }}>{filtrosVisiveis ? '✕' : '🔍'}</span>
-        Filtros
+        {filtrosVisiveis ? '✕' : 'Filtros'}
         {filtrosAtivos && (
           <span className="mapa-contador-badge">{totalNoMapa}</span>
         )}
@@ -104,8 +105,9 @@ export default function Mapa() {
               pathOptions={{
                 fillColor: cor,
                 color: '#fff',
-                weight: 2,
-                fillOpacity: 0.9
+                weight: 2.5,
+                fillOpacity: 0.85,
+                opacity: 0.9
               }}
             >
               <Popup
