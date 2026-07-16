@@ -50,11 +50,11 @@ export default function FotoUploader({ fotos = [], onChange, maxFotos = 20, labe
 
   const isVideo = (foto) => {
     if (typeof foto === 'string') return false;
-    return foto.tipo === 'video' || (foto.base64 && foto.base64.startsWith('data:video'));
+    return foto.tipo === 'video' || (foto.base64 && foto.base64.startsWith('data:video')) || (foto.url && foto.url.toLowerCase().endsWith('.mp4'));
   };
 
   const getSrc = (foto) => {
-    return typeof foto === 'string' ? foto : foto.base64;
+    return typeof foto === 'string' ? foto : (foto.base64 || foto.url || foto.fileId);
   };
 
   return (

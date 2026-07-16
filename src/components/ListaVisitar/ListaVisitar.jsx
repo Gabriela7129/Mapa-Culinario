@@ -5,11 +5,13 @@ import {
   LISTA_SUBABAS_LABEL
 } from '../../utils/tipos.js';
 import CardLocal from './CardLocal.jsx';
+import VisualizacaoLocal from '../Visualizacao/VisualizacaoLocal.jsx';
 
 export default function ListaVisitar() {
   const { locais, paraVisitar, abrirFormulario } = useApp();
   const [busca, setBusca] = useState('');
   const [subAba, setSubAba] = useState(LISTA_SUBABAS.TODOS);
+  const [localVisualizando, setLocalVisualizando] = useState(null);
 
   const todosLocais = useMemo(() => {
     const visitados = locais.map(l => ({ ...l, _modo: 'visitado' }));
@@ -126,9 +128,25 @@ export default function ListaVisitar() {
             </p>
           )}
           {itensFiltrados.map(item => (
-            <CardLocal key={`${item._modo}-${item.id}`} local={item} modo={item._modo} />
+            <CardLocal
+              key={`${item._modo}-${item.id}`}
+              local={item}
+              modo={item._modo}
+              onVer={() => setLocalVisualizando(item)}
+            />
           ))}
         </div>
+      )}
+
+      {localVisualizando && (
+        <VisualizacaoLocal
+          local={localVisualizando}
+          onEditar={() => {
+            abrirFormulario(localVisualizando);
+            setLocalVisualizando(null);
+          }}
+          onFechar={() => setLocalVisualizando(null)}
+        />
       )}
     </div>
   );

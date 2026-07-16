@@ -25,7 +25,8 @@ const ESTADO_INICIAL = {
   links: { site: '', tiktok: '', instagram: '' },
   lat: null,
   lng: null,
-  dataVisita: ''
+  dataVisita: '',
+  observacoes: ''
 };
 
 const MAX_COMIDAS = 10;
@@ -86,6 +87,13 @@ export default function Formulario() {
     }
     setErros({});
   }, [localEditando]);
+
+  // Sincronizar observacoes antigas (campo legado 'observacoesGerais')
+  useEffect(() => {
+    if (localEditando?.observacoesGerais && !localEditando?.observacoes) {
+      setForm(prev => ({ ...prev, observacoes: localEditando.observacoesGerais }));
+    }
+  }, [localEditando?.observacoesGerais]);
 
   // Autocomplete de endereco via Nominatim
   const buscarSugestoes = useCallback(async (query) => {
@@ -283,12 +291,12 @@ export default function Formulario() {
     }
 
     setLocalEditando(null);
-    setAbaAtiva(ABAS.MAPA);
+    setAbaAtiva(ABAS.LISTA);
   };
 
   const handleCancelar = () => {
     setLocalEditando(null);
-    setAbaAtiva(ABAS.MAPA);
+    setAbaAtiva(ABAS.LISTA);
   };
 
   return (
@@ -414,6 +422,22 @@ export default function Formulario() {
           rows={3}
           style={{ resize: 'vertical', minHeight: '80px' }}
         />
+      </div>
+
+      {/* Observacoes relevantes */}
+      <div style={fieldStyle}>
+        <label style={labelStyle}>Observações relevantes</label>
+        <textarea
+          className="input"
+          value={form.observacoes}
+          onChange={(e) => handleChange('observacoes', e.target.value)}
+          placeholder="Ex: Serve bem 3 pessoas&#10;Bom preço"
+          rows={3}
+          style={{ resize: 'vertical', minHeight: '80px' }}
+        />
+        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          Cada linha vira um item no resumo (•)
+        </p>
       </div>
 
       {/* Links */}

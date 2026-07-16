@@ -9,8 +9,8 @@ import {
 } from '../../utils/tipos.js';
 import { notaParaEmoji } from '../../utils/notaEmoji.js';
 
-export default function CardLocal({ local, modo }) {
-  const { excluirParaVisitar, abrirFormularioDeVisitar, abrirFormulario } = useApp();
+export default function CardLocal({ local, modo, onVer }) {
+  const { excluirParaVisitar, abrirFormularioDeVisitar } = useApp();
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
 
   const isVisitado = modo === 'visitado';
@@ -32,8 +32,8 @@ export default function CardLocal({ local, modo }) {
     abrirFormularioDeVisitar(local);
   };
 
-  const handleEditar = () => {
-    abrirFormulario(local);
+  const handleVer = () => {
+    if (onVer) onVer(local);
   };
 
   const links = local.links || {};
@@ -73,7 +73,6 @@ export default function CardLocal({ local, modo }) {
 
       {isVisitado && local.visitas != null && local.visitas > 1 && (
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-          <span style={{ fontSize: '14px', marginRight: '4px' }}>👁</span>
           {local.visitas} visitas
         </p>
       )}
@@ -88,7 +87,7 @@ export default function CardLocal({ local, modo }) {
               className="card-local-link"
               title="Site"
             >
-              🌐 Site
+              Site
             </a>
           )}
           {links.instagram && (
@@ -99,7 +98,7 @@ export default function CardLocal({ local, modo }) {
               className="card-local-link"
               title="Instagram"
             >
-              📷 Instagram
+              Instagram
             </a>
           )}
           {links.tiktok && (
@@ -110,7 +109,7 @@ export default function CardLocal({ local, modo }) {
               className="card-local-link"
               title="TikTok"
             >
-              🎵 TikTok
+              TikTok
             </a>
           )}
         </div>
@@ -120,10 +119,10 @@ export default function CardLocal({ local, modo }) {
         {isVisitado ? (
           <button
             className="btn btn-small card-local-btn"
-            onClick={handleEditar}
-            title="Editar local"
+            onClick={handleVer}
+            title="Ver local"
           >
-            ✏️ Editar
+            Ver
           </button>
         ) : (
           <>
@@ -132,13 +131,13 @@ export default function CardLocal({ local, modo }) {
               onClick={handleMarcarVisitado}
               title="Marcar como visitado e abrir formulário"
             >
-              ✓ Visitei
+              Visitei
             </button>
             <button
               className={`btn btn-small card-local-btn ${confirmandoExclusao ? 'btn-danger' : 'btn-secondary'}`}
               onClick={handleExcluir}
             >
-              {confirmandoExclusao ? 'Confirmar?' : '🗑 Excluir'}
+              {confirmandoExclusao ? 'Confirmar?' : 'Excluir'}
             </button>
           </>
         )}

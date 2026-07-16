@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useApp } from '../../contexts/AppContext.jsx';
-import { STATUS_LOCAL, STATUS_LOCAL_COR } from '../../utils/tipos.js';
+import { STATUS_LOCAL, STATUS_LOCAL_COR, ABAS } from '../../utils/tipos.js';
 import MarcadorPopup from './MarcadorPopup.jsx';
 import PopupParaVisitar from './PopupParaVisitar.jsx';
 import FiltrosMapa from './FiltrosMapa.jsx';
@@ -27,7 +27,7 @@ function MarcadoresAtualizaveis({ locaisFiltrados }) {
 }
 
 export default function Mapa() {
-  const { locais, paraVisitar, filtros, setFiltros, filtrarLocais, abrirFormulario, abrirFormularioDeVisitar } = useApp();
+  const { locais, paraVisitar, filtros, setFiltros, filtrarLocais, abrirFormulario, abrirFormularioDeVisitar, setAbaAtiva } = useApp();
   const [filtrosVisiveis, setFiltrosVisiveis] = useState(false);
 
   const locaisVisitadosFiltrados = useMemo(() => filtrarLocais(), [filtrarLocais]);
@@ -123,7 +123,7 @@ export default function Mapa() {
                 ) : (
                   <MarcadorPopup
                     local={local}
-                    onVerDetalhes={() => abrirFormulario(local)}
+                    onVerDetalhes={() => setAbaAtiva(ABAS.LISTA)}
                   />
                 )}
               </Popup>
