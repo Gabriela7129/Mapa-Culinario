@@ -39,8 +39,13 @@ export default function VisualizacaoLocal({ local, onEditar, onFechar }) {
     setMidiaAberta(null);
   };
 
+  const getSrc = (midia) => {
+    return typeof midia === 'string' ? midia : (midia.url || midia.base64 || midia.fileId);
+  };
+
   const renderMidiaThumb = (midia) => {
-    const isVideo = (midia?.tipo === 'video') || (midia?.url && midia.url.toLowerCase().endsWith('.mp4'));
+    const isVideo = (midia?.tipo === 'video') || (midia?.url && midia.url.toLowerCase().endsWith('.mp4')) || (midia?.base64 && midia.base64.startsWith('data:video'));
+    const src = getSrc(midia);
     return (
       <button
         key={midia.id}
@@ -48,9 +53,9 @@ export default function VisualizacaoLocal({ local, onEditar, onFechar }) {
         onClick={() => abrirMidia(midia)}
       >
         {isVideo ? (
-          <video src={midia.url} muted playsInline preload="metadata" />
+          <video src={src} muted playsInline preload="metadata" />
         ) : (
-          <img src={midia.url} alt="" loading="lazy" />
+          <img src={src} alt="" loading="lazy" />
         )}
       </button>
     );
@@ -124,16 +129,16 @@ export default function VisualizacaoLocal({ local, onEditar, onFechar }) {
             onClick={(e) => e.stopPropagation()}
           >
             <button className="visualizacao-midia-fechar" onClick={fecharMidia}>✕</button>
-            {(midiaAberta?.tipo === 'video') || (midiaAberta?.url && midiaAberta.url.toLowerCase().endsWith('.mp4')) ? (
+            {(midiaAberta?.tipo === 'video') || (midiaAberta?.url && midiaAberta.url.toLowerCase().endsWith('.mp4')) || (midiaAberta?.base64 && midiaAberta.base64.startsWith('data:video')) ? (
               <video
                 ref={videoRef}
-                src={midiaAberta.url}
+                src={getSrc(midiaAberta)}
                 controls
                 autoPlay
                 playsInline
               />
             ) : (
-              <img src={midiaAberta.url} alt="" />
+              <img src={getSrc(midiaAberta)} alt="" />
             )}
           </div>
         </div>
